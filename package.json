@@ -1,0 +1,14 @@
+{
+  "name": "qvac-suggestion-box",
+  "version": "1.0.0",
+  "description": "Suggestion Box: submit and browse suggestions. Duplicate detection and auto-sorting run on-device with the QVAC SDK.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@qvac/sdk": "^0.19.0"
+  },
+  "license": "MIT"
+}
