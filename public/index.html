@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Suggestion Box</title>
+<style>
+  :root { --wall: #14625f; --ink: #26323a; --card: #fff; --muted: #64757c; --line: #cfdedd; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--wall); color: var(--ink); font: 16px/1.5 system-ui, "Segoe UI", sans-serif; }
+  main { max-width: 680px; margin: 0 auto; padding: 24px 16px 56px; }
+  h1 { font: 800 34px/1.1 "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive; margin: 0; color: #fff; } .sub { color: #cfeae7; margin: 2px 0 8px; }
+  #status { font-size: 13px; color: #cfeae7; margin: 0 0 12px; } #status.ok { color: #b6f5c2; } #status.err { color: #ffd0cc; }
+  .panel { background: var(--card); border-radius: 14px; padding: 16px 18px; margin-bottom: 16px; box-shadow: 0 4px 0 rgba(0,0,0,.18); }
+  .panel h2 { font: 700 20px Georgia, serif; margin: 0 0 8px; }
+  textarea, input, select { width: 100%; font: inherit; padding: 10px 12px; border: 2px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); }
+  textarea { min-height: 110px; resize: vertical; }
+  textarea:focus-visible, input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid #f2b705; outline-offset: 2px; }
+  button { font: inherit; font-weight: 700; padding: 9px 16px; border: 0; border-radius: 10px; background: var(--wall); color: #fff; cursor: pointer; }
+  button.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); padding: 5px 12px; font-size: 14px; } button.ghost:hover { border-color: var(--wall); }
+  button:disabled { opacity: .5; cursor: wait; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; } .row > input { flex: 1 1 140px; width: auto; } .count { margin-left: auto; color: var(--muted); font-size: 13px; }
+  .note { color: var(--muted); font-size: 14px; margin: 6px 0 0; min-height: 20px; } .hidden { display: none; }
+  #review { border: 3px dashed var(--wall); } #review select { width: auto; }
+  .similar { background: #fff7d6; border-radius: 10px; padding: 8px 12px; margin-top: 10px; } .similar .item { display: flex; gap: 10px; align-items: center; padding: 6px 0; } .similar .item span { flex: 1; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; } .chips button { background: transparent; color: var(--ink); border: 1px solid var(--line); padding: 5px 12px; font-size: 14px; } .chips button.on { background: var(--wall); color: #fff; border-color: var(--wall); }
+  .sticky { --note: #fff2a8; background: var(--note); border-radius: 4px 4px 14px 4px; padding: 14px 16px; margin-bottom: 14px; box-shadow: 0 5px 0 rgba(0,0,0,.2); transform: rotate(-.6deg); }
+  .sticky:nth-child(even) { transform: rotate(.7deg); }
+  .sticky.Problem { --note: #ffc9d4; } .sticky.Praise { --note: #c8f2c9; } .sticky.Question { --note: #c9e4ff; } .sticky.done { opacity: .6; }
+  .sticky .txt { font: 19px/1.45 "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive; margin: 0 0 8px; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 14px; color: #3d4b52; }
+  .tag { background: rgba(0,0,0,.12); border-radius: 99px; padding: 1px 10px; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+  .vote { background: #fff; color: var(--ink); border: 2px solid var(--ink); } .vote.on { background: var(--ink); color: #fff; } .push { margin-left: auto; display: flex; gap: 6px; }
+  .empty { text-align: center; color: #cfeae7; padding: 20px 0; }
+  @media (prefers-reduced-motion: reduce) { .sticky, .sticky:nth-child(even) { transform: none; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Suggestion Box</h1>
+  <p class="sub">Drop in an idea, a problem, a thank-you or a question. Everyone can browse and upvote.</p>
+  <p id="status">Checking smart sorting...</p>
+
+  <section class="panel">
+    <h2>Leave a suggestion</h2>
+    <textarea id="text" maxlength="500" placeholder="What would make things better?" aria-label="Your suggestion" autofocus></textarea>
+    <div class="row"><input id="name" maxlength="30" placeholder="Your name (optional)" aria-label="Your name"><button id="submit">Submit</button><span class="count" id="count">0 / 500</span></div>
+    <p class="note" id="subNote"></p>
+
+    <div id="review" class="panel hidden" style="margin:12px 0 0;box-shadow:none">
+      <strong>Filing it under:</strong> <select id="cat" aria-label="Category"><option>Idea</option><option>Problem</option><option>Praise</option><option>Question</option></select>
+      <p class="note" id="catNote"></p>
+      <div id="similar" class="similar hidden"><strong>Something like this may already be here:</strong><div id="simList"></div></div>
+      <div class="row"><button id="confirm">Submit my suggestion</button><button class="ghost" id="edit">Keep editing</button></div>
+    </div>
+  </section>
+
+  <section>
+    <input id="search" type="search" placeholder="Search suggestions by meaning..." aria-label="Search suggestions" style="border:0">
+    <div class="chips" id="chips"><button data-c="All" class="on">All</button><button data-c="Idea">Ideas</button><button data-c="Problem">Problems</button><button data-c="Praise">Praise</button><button data-c="Question">Questions</button>
+      <select id="sort" aria-label="Sort" style="width:auto;margin-left:auto"><option value="top">Most votes</option><option value="new">Newest</option></select></div>
+    <div id="list"></div>
+    <div class="row"><button class="ghost" style="color:#fff;border-color:#8fc3bf" id="sampleBtn">Add sample suggestions</button></div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let items = [], ids = null, cat = "All", timer, voted = new Set();
+try { voted = new Set(JSON.parse(localStorage.getItem("voted") || "[]")); } catch {}
+const saveVoted = () => { try { localStorage.setItem("voted", JSON.stringify([...voted])); } catch {} };
+
+async function api(url, method = "GET", body) {
+  const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  const data = await res.json(); if (!res.ok) throw new Error(data.error || "Something went wrong"); return data;
+}
+async function load() { items = await api("/api/suggestions"); render(); }
+
+// ---------- Browse ----------
+function render() {
+  let pool = ids ? ids.map((id) => items.find((s) => s.id === id)).filter(Boolean) : [...items].sort($("sort").value === "new" ? (a, b) => b.created - a.created : (a, b) => b.votes - a.votes || b.created - a.created);
+  pool = pool.filter((s) => cat === "All" || s.category === cat);
+  const box = $("list"); box.innerHTML = "";
+  if (!pool.length) box.innerHTML = '<p class="empty">' + (items.length ? "Nothing matches." : "The box is empty. Be the first to leave a suggestion!") + "</p>";
+  pool.forEach((s) => {
+    const n = document.createElement("div"); n.className = "sticky " + s.category + (s.done ? " done" : "");
+    const t = document.createElement("p"); t.className = "txt"; t.textContent = s.text;
+    const m = document.createElement("div"); m.className = "meta";
+    const tag = document.createElement("span"); tag.className = "tag"; tag.textContent = s.category + (s.done ? " \u2713 done" : "");
+    const who = document.createElement("span"); who.textContent = s.name + ", " + new Date(s.created).toLocaleDateString();
+    const push = document.createElement("span"); push.className = "push";
+    const v = document.createElement("button"); v.className = "vote" + (voted.has(s.id) ? " on" : ""); v.textContent = "\u25B2 " + s.votes; v.setAttribute("aria-label", "Upvote, " + s.votes + " votes");
+    v.onclick = () => vote(s);
+    const dn = document.createElement("button"); dn.className = "ghost"; dn.textContent = s.done ? "Reopen" : "Mark done"; dn.onclick = () => act(s.id, s.done ? "reopen" : "done");
+    const del = document.createElement("button"); del.className = "ghost"; del.textContent = "Delete"; del.onclick = () => confirm("Delete this suggestion?") && act(s.id, "delete");
+    push.append(v, dn, del); m.append(tag, who, push); n.append(t, m); box.append(n);
+  });
+}
+async function act(id, action) { await api("/api/action", "POST", { id, action }); await load(); }
+async function vote(s) { if (voted.has(s.id)) { voted.delete(s.id); await act(s.id, "unvote"); } else { voted.add(s.id); await act(s.id, "vote"); } saveVoted(); }
+$("chips").onclick = (e) => { if (e.target.dataset.c) { cat = e.target.dataset.c; document.querySelectorAll("#chips button").forEach((b) => b.classList.toggle("on", b.dataset.c === cat)); render(); } };
+$("sort").onchange = render;
+$("search").oninput = () => { clearTimeout(timer); timer = setTimeout(async () => { const q = $("search").value.trim(); ids = q ? await api("/api/search", "POST", { q }) : null; render(); }, 350); };
+
+// ---------- Submit: check for duplicates and sort it (QVAC on your machine), then confirm ----------
+$("text").oninput = () => { $("count").textContent = $("text").value.length + " / 500"; };
+$("submit").onclick = async () => {
+  const text = $("text").value.trim(); if (text.length < 3) { $("subNote").textContent = "Please write a little more."; return $("text").focus(); }
+  $("submit").disabled = true; $("subNote").textContent = "Checking...";
+  let info = { category: null, similar: [] };
+  try { info = await api("/api/check", "POST", { text }); } catch {}
+  $("submit").disabled = false; $("subNote").textContent = "";
+  $("cat").value = info.category || "Idea"; $("catNote").textContent = info.category ? "Auto-sorted by the on-device AI. Change it if it's wrong." : "";
+  const list = $("simList"); list.innerHTML = ""; $("similar").classList.toggle("hidden", !info.similar.length);
+  info.similar.forEach((s) => {
+    const r = document.createElement("div"); r.className = "item"; const sp = document.createElement("span"); sp.textContent = s.text + " (" + s.votes + " votes)";
+    const b = document.createElement("button"); b.className = "ghost"; b.textContent = voted.has(s.id) ? "Already upvoted" : "Upvote this instead"; b.disabled = voted.has(s.id);
+    b.onclick = async () => { voted.add(s.id); saveVoted(); await act(s.id, "vote"); $("text").value = ""; $("count").textContent = "0 / 500"; $("review").classList.add("hidden"); $("subNote").textContent = "Thanks! Your vote was added."; };
+    r.append(sp, b); list.append(r);
+  });
+  $("review").classList.remove("hidden");
+};
+$("edit").onclick = () => { $("review").classList.add("hidden"); $("text").focus(); };
+$("confirm").onclick = async () => {
+  $("confirm").disabled = true;
+  try { await api("/api/suggestions", "POST", { text: $("text").value, name: $("name").value, category: $("cat").value });
+    $("text").value = ""; $("count").textContent = "0 / 500"; $("review").classList.add("hidden"); $("subNote").textContent = "Thanks! Your suggestion is in the box."; await load(); }
+  catch (err) { $("subNote").textContent = err.message; }
+  $("confirm").disabled = false;
+};
+
+$("sampleBtn").onclick = async () => {
+  const S = [["Add a dark mode, my eyes hurt at night.", "Idea"], ["The search page is really slow on my phone.", "Problem"], ["Love the new layout, great job!", "Praise"], ["How do I export all of my data?", "Question"], ["Please add keyboard shortcuts for faster navigation.", "Idea"]];
+  for (const [text, category] of S) await api("/api/suggestions", "POST", { text, category, name: "Sample" }); await load();
+};
+
+// ---------- Status ----------
+async function checkStatus() {
+  try {
+    const s = await api("/api/status");
+    if (s.error) return setStatus("Smart sorting error: " + s.error + ". The box still works.", "err");
+    if (s.ready) return setStatus("Smart sorting ready. It runs on your device.", "ok");
+    setStatus(s.message + (s.percent != null ? " " + s.percent + "%" : "") + " The box works meanwhile.");
+  } catch { setStatus("Can't reach the server. Open http://localhost:3011 (not the HTML file) and make sure npm start is running.", "err"); }
+  setTimeout(checkStatus, 1500);
+}
+function setStatus(t, c = "") { $("status").textContent = t; $("status").className = c; }
+
+load().catch(() => {}); checkStatus();
+</script>
+</body>
+</html>
