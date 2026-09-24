@@ -25,7 +25,7 @@ Functions used: `loadModel` and `embed`, with the `EMBEDDINGGEMMA_300M_Q4_0` emb
 You need [Node.js](https://nodejs.org) (current LTS) and a little free disk space for the model.
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/qvac-suggestion-box.git
+git clone https://github.com/vander-code/qvac-suggestion-box.git
 cd qvac-suggestion-box
 npm install
 ```
